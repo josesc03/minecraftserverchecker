@@ -1,8 +1,8 @@
-# 🎮 Webhook de Estado de Servidor Minecraft para Discord
+# Webhook de Estado de Servidor Minecraft para Discord
 
 Bot automático que monitorea el estado de tu servidor de Minecraft y actualiza un mensaje en Discord con el estado actual.
 
-## ✨ Características
+## Características
 
 - ✅ **Actualización automática**: Verifica el estado del servidor cada X segundos
 - ✅ **Persistencia de mensajes**: Mantiene el mismo mensaje en Discord entre reinicios
@@ -12,7 +12,7 @@ Bot automático que monitorea el estado de tu servidor de Minecraft y actualiza 
 - ✅ **API REST**: Endpoints disponibles para consultas manuales
 - ✅ **Configuración externa**: Archivo de configuración separado no incluido en Git
 
-## 🚀 Instalación
+## Instalación
 
 1. **Clonar el repositorio** (o descargar los archivos)
 
@@ -26,7 +26,7 @@ O si tienes Node.js en el PATH:
 npm install
 ```
 
-## ⚙️ Configuración
+## Configuración
 
 1. **Crear archivo de configuración**:
    Copia `config.example.json` a `config.json`:
@@ -56,7 +56,7 @@ npm install
 - `300000` = 5 minutos
 - `600000` = 10 minutos
 
-## 🎯 Uso
+## Uso
 
 ### Iniciar el bot
 
@@ -102,14 +102,14 @@ Fuerza una actualización en Discord para cualquier dominio.
 curl http://localhost:3000/discord/mc.example.com
 ```
 
-## 📁 Archivos
+## Archivos
 
 - `server.js` - Código principal del bot
 - `package.json` - Dependencias del proyecto
 - `message-state.json` - Estado persistente (ID del último mensaje)
 - `.gitignore` - Archivos a ignorar en Git
 
-## 🔧 Características técnicas
+## Características técnicas
 
 ### Persistencia de estado
 
@@ -141,7 +141,7 @@ Realiza una conexión TCP directa al servidor para verificar:
 - ✅ Latencia de conexión
 - ✅ IP y puerto resueltos
 
-## 🎨 Personalización del mensaje
+## Personalización del mensaje
 
 Puedes personalizar el embed de Discord editando la función `sendDiscordMessage` en `server.js`:
 
@@ -159,7 +159,7 @@ let embed = {
 };
 ```
 
-## 🐛 Debug
+## Debug
 
 Activa el modo debug para ver el payload JSON enviado a Discord:
 
@@ -167,7 +167,7 @@ Activa el modo debug para ver el payload JSON enviado a Discord:
 debug = true; // En la línea 15 de server.js
 ```
 
-## 📝 Logs
+## Logs
 
 El bot muestra logs detallados en la consola:
 - 📂 Carga/guardado de estado
@@ -176,7 +176,7 @@ El bot muestra logs detallados en la consola:
 - 🗑️ Eliminación de mensajes anteriores
 - ✅ Creación/actualización de mensajes en Discord
 
-## ⚠️ Troubleshooting
+## Troubleshooting
 
 ### El mensaje no aparece en Discord
 - Verifica que la URL del webhook sea correcta
@@ -193,10 +193,10 @@ El bot muestra logs detallados en la consola:
 - Formato: `_minecraft._tcp.tu-dominio.com`
 - El registro debe apuntar al servidor correcto
 
-## 📄 Licencia
+## Licencia
 
 MIT
 
-## 🤝 Contribuciones
+## Contribuciones
 
 ¡Las contribuciones son bienvenidas! Siéntete libre de abrir issues o pull requests.
