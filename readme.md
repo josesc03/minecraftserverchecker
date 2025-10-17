@@ -74,7 +74,7 @@ node server.js
 Una vez iniciado, el bot:
 1. ✅ Carga el estado anterior (si existe)
 2. ✅ Verifica el estado del servidor inmediatamente
-3. ✅ Envía/actualiza el mensaje en Discord
+3. ✅ Envía/actualiza el mensaje en Discord si el estado es distinto
 4. ✅ Continúa actualizando cada X segundos automáticamente
 
 ### API Endpoints (opcional)

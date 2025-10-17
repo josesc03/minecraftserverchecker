@@ -32,8 +32,9 @@ const MINECRAFT_DOMAIN = config.MINECRAFT_DOMAIN;
 const UPDATE_INTERVAL = config.UPDATE_INTERVAL || 30000; // 30 segundos por defecto
 const STATE_FILE = path.join(__dirname, 'message-state.json');
 
-// Variable para almacenar el ID del último mensaje enviado
+// Variable para almacenar el ID del último mensaje enviado y el estado anterior
 let lastMessageId = null;
+let lastServerState = null; // Para almacenar el estado anterior del servidor
 
 // Función para cargar el estado desde el archivo
 function loadState() {
@@ -42,10 +43,16 @@ function loadState() {
             const data = fs.readFileSync(STATE_FILE, 'utf8');
             const state = JSON.parse(data);
             lastMessageId = state.lastMessageId;
+            lastServerState = state.lastServerState || null;
             if (lastMessageId) {
                 console.log(`📂 Estado cargado: Mensaje anterior encontrado (ID: ${lastMessageId})`);
             } else {
                 console.log(`📂 Estado cargado: No hay mensaje anterior`);
+            }
+            if (lastServerState !== null) {
+                console.log(`📂 Estado anterior del servidor: ${lastServerState ? 'ONLINE' : 'OFFLINE'}`);
+            } else {
+                console.log(`📂 Sin estado anterior del servidor registrado`);
             }
         } else {
             console.log(`📂 Archivo de estado no encontrado, creando uno nuevo...`);
@@ -54,6 +61,7 @@ function loadState() {
     } catch (error) {
         console.error('⚠️ Error cargando estado:', error.message);
         lastMessageId = null;
+        lastServerState = null;
     }
 }
 
@@ -62,10 +70,11 @@ function saveState() {
     try {
         const state = {
             lastMessageId: lastMessageId,
+            lastServerState: lastServerState,
             lastUpdate: new Date().toISOString()
         };
         fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf8');
-        console.log(`💾 Estado guardado: ${lastMessageId ? `Mensaje ID: ${lastMessageId}` : 'Sin mensaje'}`);
+        console.log(`💾 Estado guardado: ${lastMessageId ? `Mensaje ID: ${lastMessageId}` : 'Sin mensaje'} | Servidor: ${lastServerState !== null ? (lastServerState ? 'ONLINE' : 'OFFLINE') : 'DESCONOCIDO'}`);
     } catch (error) {
         console.error('⚠️ Error guardando estado:', error.message);
     }
@@ -287,6 +296,12 @@ async function sendDiscordMessage(serverStatus, domain, srvRecord) {
                         if (responseJson.id) {
                             lastMessageId = responseJson.id;
                             console.log(`✅ Mensaje creado con ID: ${lastMessageId}`);
+                            
+                            // Actualizar también el estado del servidor cuando se envía manualmente
+                            if (domain === MINECRAFT_DOMAIN) {
+                                lastServerState = serverStatus.online;
+                            }
+                            
                             saveState(); // Guardar el estado después de crear el mensaje
                         }
                     } catch (e) {
@@ -425,30 +440,53 @@ app.get('/status/:domain', async (req, res) => {
 // Función para actualizar automáticamente el estado
 async function updateServerStatus() {
     try {
-        console.log(`\n⏰ [${new Date().toLocaleString()}] Actualizando estado del servidor...`);
+        console.log(`\n⏰ [${new Date().toLocaleString()}] Verificando estado del servidor...`);
         
         // Resolver el registro SRV
         const srvRecord = await resolveSRV(MINECRAFT_DOMAIN);
         
         if (!srvRecord) {
             console.log('❌ No se pudo resolver el registro SRV');
-            await sendDiscordMessage(
-                { online: false, error: 'No se pudo resolver el registro SRV' },
-                MINECRAFT_DOMAIN,
-                null
-            );
+            
+            // Verificar si el estado cambió (de online a offline por error de SRV)
+            const currentState = false;
+            if (lastServerState !== currentState) {
+                console.log(`🔄 Estado cambió: ${lastServerState !== null ? (lastServerState ? 'ONLINE' : 'OFFLINE') : 'DESCONOCIDO'} → OFFLINE (Error SRV)`);
+                lastServerState = currentState;
+                saveState();
+                
+                await sendDiscordMessage(
+                    { online: false, error: 'No se pudo resolver el registro SRV' },
+                    MINECRAFT_DOMAIN,
+                    null
+                );
+            } else {
+                console.log(`⭕ Sin cambios: Servidor sigue OFFLINE (Error SRV) - No se envía mensaje`);
+            }
             return;
         }
 
         // Verificar el estado del servidor
         const serverStatus = await checkMinecraftServer(srvRecord.host, srvRecord.port);
+        const currentState = serverStatus.online;
         
-        // Enviar mensaje a Discord
-        await sendDiscordMessage(serverStatus, MINECRAFT_DOMAIN, srvRecord);
+        // Verificar si el estado cambió
+        if (lastServerState !== currentState) {
+            console.log(`🔄 Estado cambió: ${lastServerState !== null ? (lastServerState ? 'ONLINE' : 'OFFLINE') : 'DESCONOCIDO'} → ${currentState ? 'ONLINE' : 'OFFLINE'}`);
+            
+            // Actualizar el estado y guardar
+            lastServerState = currentState;
+            saveState();
+            
+            // Enviar mensaje a Discord solo si hay cambio
+            await sendDiscordMessage(serverStatus, MINECRAFT_DOMAIN, srvRecord);
+            console.log(`✅ Mensaje enviado a Discord - Servidor: ${serverStatus.online ? 'ONLINE' : 'OFFLINE'}`);
+        } else {
+            console.log(`⭕ Sin cambios: Servidor sigue ${currentState ? 'ONLINE' : 'OFFLINE'} - No se envía mensaje`);
+        }
         
-        console.log(`✅ Estado actualizado - Servidor: ${serverStatus.online ? 'ONLINE' : 'OFFLINE'}`);
     } catch (error) {
-        console.error('❌ Error al actualizar estado:', error);
+        console.error('❌ Error al verificar estado:', error);
     }
 }
 
@@ -481,8 +519,18 @@ app.listen(PORT, () => {
     console.log(`   ✓ El mensaje anterior se mantiene entre reinicios`);
     
     // Ejecutar la primera actualización inmediatamente
-    console.log(`\n⏳ Iniciando primera actualización...`);
-    updateServerStatus();
+    console.log(`\n⏳ Iniciando primera verificación...`);
+    
+    // Para la primera ejecución, forzamos el envío independientemente del estado anterior
+    const originalState = lastServerState;
+    lastServerState = null; // Forzar que detecte cambio en la primera ejecución
+    
+    updateServerStatus().then(() => {
+        // Si no hubo cambio real, restaurar el estado original para futuras verificaciones
+        if (originalState !== null && lastServerState === originalState) {
+            console.log(`📋 Primera verificación completada - Estado inicial confirmado`);
+        }
+    });
     
     // Configurar actualizaciones periódicas
     setInterval(updateServerStatus, UPDATE_INTERVAL);
